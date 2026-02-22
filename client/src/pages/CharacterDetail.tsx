@@ -81,7 +81,7 @@ export default function CharacterDetail() {
   return (
     <>
       <Link component={RouterLink} to="/party" sx={{ display: "inline-block", mb: 2 }}>
-        ← Back to party
+        ← Back to overview
       </Link>
       <Typography variant="h4" gutterBottom sx={{ fontFamily: "Cinzel, Georgia, serif" }}>
         {c.charName || info.name || "Unnamed"}

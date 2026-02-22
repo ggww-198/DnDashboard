@@ -8,7 +8,8 @@ import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 
 const nav = [
-  { label: "Party", path: "/party" },
+  { label: "Overview", path: "/party" },
+  { label: "Inventory", path: "/inventory" },
   { label: "Traits", path: "/traits" },
 ];
 
