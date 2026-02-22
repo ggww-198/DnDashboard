@@ -8,7 +8,7 @@ export default interface Traits {
     other: TraitDetail[]
 }
 
-interface TraitDetail {
+export interface TraitDetail {
     name: string;
     source: string;
     source_type: string;
