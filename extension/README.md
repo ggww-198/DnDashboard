@@ -1,0 +1,3 @@
+- Fix proficiencies & languages scraping page
+- Test out feaures & traits scraping (repeating_traits)
+- What is repeating_features & repeating_classfeatures & repeating_racialtrait

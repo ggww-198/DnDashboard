@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Roll20 Journal Listener",
+  "version": "1.0",
+  "content_scripts": [
+    {
+      "matches": ["*://app.roll20.net/editor*"],
+      "js": ["scripts/actual_v2.js"]
+    }
+  ]
+}
