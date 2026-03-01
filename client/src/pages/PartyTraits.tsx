@@ -1,58 +1,68 @@
 import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
-import FormControl from "@mui/material/FormControl";
-import InputLabel from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Popover from "@mui/material/Popover";
-import Select from "@mui/material/Select";
+import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import type { TraitDetail } from "../Types/CharacterDetails/traits";
 import { useParty } from "../context/PartyContext";
+import { TRAIT_ICONS, type TraitSource } from "../constants/icons";
 
-type SourceFilter = "all" | "Racial" | "Class" | "Item" | "Background" | "Feat" | "other";
+function getTraitIcon(source: string): string {
+  const key = (source || "other") as TraitSource;
+  return TRAIT_ICONS[key] ?? TRAIT_ICONS.other;
+}
 
-function TraitChip({
-  trait,
-  charName,
-  onOpen,
-}: { trait: TraitDetail; charName: string; onOpen: (anchor: HTMLElement, trait: TraitDetail, charName: string) => void }) {
+function TraitSlot({ trait, charName }: { trait: TraitDetail; charName: string }) {
+  const icon = getTraitIcon(trait.source);
+  const desc = trait.description ?? "";
+  const shortDesc = desc.slice(0, 280) + (desc.length > 280 ? "…" : "");
+  const tooltipTitle = (
+    <Box sx={{ maxWidth: 320 }}>
+      <Typography variant="subtitle2" fontWeight={600}>{trait.name}</Typography>
+      <Typography variant="caption" sx={{ opacity: 0.9 }}>{trait.source}{trait.source_type ? ` · ${trait.source_type}` : ""} · {charName}</Typography>
+      <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>{shortDesc}</Typography>
+    </Box>
+  );
   return (
-    <Chip
-      label={trait.name}
-      size="small"
-      onClick={(e) => onOpen(e.currentTarget, trait, charName)}
-      sx={{
-        cursor: "pointer",
-        maxWidth: 220,
-        "& .MuiChip-label": { overflow: "hidden", textOverflow: "ellipsis" },
-        "&:hover": { bgcolor: "primary.dark", color: "primary.contrastText" },
-      }}
-    />
+    <Tooltip title={tooltipTitle} placement="top" enterDelay={300} leaveDelay={0} slotProps={{ popper: { sx: { "& .MuiTooltip-tooltip": { bgcolor: "grey.900", border: "1px solid", borderColor: "primary.dark" } } } }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 0.75,
+          minHeight: 52,
+          display: "flex",
+          alignItems: "center",
+          gap: 0.75,
+          cursor: "default",
+          "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" },
+        }}
+      >
+        <Box component="span" sx={{ fontSize: "1.25rem", lineHeight: 1, flexShrink: 0 }}>{icon}</Box>
+        <Typography variant="caption" fontWeight={600} noWrap sx={{ flex: 1, fontSize: "0.75rem" }}>
+          {trait.name}
+        </Typography>
+      </Paper>
+    </Tooltip>
   );
 }
 
 export default function PartyTraits() {
   const { party, characterIds } = useParty();
-  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
-  const [charFilter, setCharFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
-  const [popover, setPopover] = useState<{ anchor: HTMLElement; trait: TraitDetail; charName: string } | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
 
   const bySource = useMemo(() => {
     if (!party) return new Map<string, { trait: TraitDetail; charId: string; charName: string }[]>();
     const map = new Map<string, { trait: TraitDetail; charId: string; charName: string }[]>();
     for (const id of characterIds) {
       const c = party[id];
-      const list = c?.traits?.all ?? [];
       const charName = c?.charName ?? c?.info?.name ?? "Unknown";
+      const list = c?.traits?.all ?? [];
       for (const trait of list) {
-        const source = trait.source || "other";
-        if (!map.has(source)) map.set(source, []);
-        map.get(source)!.push({ trait, charId: id, charName });
+        const src = trait.source || "other";
+        if (!map.has(src)) map.set(src, []);
+        map.get(src)!.push({ trait, charId: id, charName });
       }
     }
     return map;
@@ -60,26 +70,17 @@ export default function PartyTraits() {
 
   const sources = useMemo(() => Array.from(bySource.keys()).sort(), [bySource]);
 
-  const filteredBySource = useMemo(() => {
-    const chosen = sourceFilter === "all" ? sources : [sourceFilter];
-    const out: { source: string; items: { trait: TraitDetail; charId: string; charName: string }[] }[] = [];
-    for (const src of chosen) {
-      const items = bySource.get(src) ?? [];
-      let list = items;
-      if (charFilter !== "all") list = list.filter((x) => x.charId === charFilter);
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        list = list.filter(
-          ({ trait, charName }) =>
-            trait.name.toLowerCase().includes(q) ||
-            trait.description.toLowerCase().includes(q) ||
-            charName.toLowerCase().includes(q)
-        );
-      }
-      if (list.length) out.push({ source: src, items: list });
+  const filtered = useMemo(() => {
+    const src = sourceFilter === "all" ? sources : [sourceFilter];
+    const out: { source: string; items: { trait: TraitDetail; charName: string }[] }[] = [];
+    const q = search.toLowerCase().trim();
+    for (const s of src) {
+      let items = bySource.get(s) ?? [];
+      if (q) items = items.filter(({ trait, charName }) => trait.name.toLowerCase().includes(q) || trait.description.toLowerCase().includes(q) || charName.toLowerCase().includes(q));
+      if (items.length) out.push({ source: s, items });
     }
     return out;
-  }, [bySource, sourceFilter, sources, charFilter, search]);
+  }, [bySource, sourceFilter, sources, search]);
 
   if (!party || characterIds.length === 0) {
     return (
@@ -89,90 +90,75 @@ export default function PartyTraits() {
     );
   }
 
-  const handleOpen = (anchor: HTMLElement, trait: TraitDetail, charName: string) => {
-    setPopover({ anchor, trait, charName });
-  };
-  const handleClose = () => setPopover(null);
-
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto" }}>
-      <Typography variant="h4" gutterBottom sx={{ fontFamily: "Cinzel, Georgia, serif" }}>
-        Party traits
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 2 }}>
-        Group by source, then scan the grid. Click a trait for full description.
-      </Typography>
-
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 2, alignItems: "center" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+        <Typography variant="h5" sx={{ fontFamily: "Cinzel, Georgia, serif" }}>
+          Party traits
+        </Typography>
         <TextField
           size="small"
           placeholder="Search…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          sx={{ minWidth: 180 }}
+          sx={{ width: 160 }}
         />
-        <ToggleButtonGroup
-          value={sourceFilter}
-          exclusive
-          onChange={(_, v) => v != null && setSourceFilter(v)}
-          size="small"
-        >
-          <ToggleButton value="all">All</ToggleButton>
+        <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+          <Paper
+            component="button"
+            variant="outlined"
+            onClick={() => setSourceFilter("all")}
+            sx={{
+              px: 1,
+              py: 0.5,
+              cursor: "pointer",
+              borderColor: sourceFilter === "all" ? "primary.main" : undefined,
+              bgcolor: sourceFilter === "all" ? "action.selected" : undefined,
+            }}
+          >
+            <Typography variant="caption">All</Typography>
+          </Paper>
           {sources.map((s) => (
-            <ToggleButton key={s} value={s}>{s}</ToggleButton>
+            <Paper
+              key={s}
+              component="button"
+              variant="outlined"
+              onClick={() => setSourceFilter(s)}
+              sx={{
+                px: 1,
+                py: 0.5,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                borderColor: sourceFilter === s ? "primary.main" : undefined,
+                bgcolor: sourceFilter === s ? "action.selected" : undefined,
+              }}
+            >
+              <span>{getTraitIcon(s)}</span>
+              <Typography variant="caption">{s}</Typography>
+            </Paper>
           ))}
-        </ToggleButtonGroup>
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>Character</InputLabel>
-          <Select value={charFilter} label="Character" onChange={(e) => setCharFilter(e.target.value)}>
-            <MenuItem value="all">All</MenuItem>
-            {characterIds.map((id) => (
-              <MenuItem key={id} value={id}>{party[id]?.charName ?? party[id]?.info?.name ?? id}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        </Box>
       </Box>
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        {filteredBySource.map(({ source, items }) => (
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {filtered.map(({ source, items }) => (
           <Box key={source}>
-            <Typography variant="subtitle2" color="primary" sx={{ fontFamily: "Cinzel, Georgia, serif", mb: 1 }}>
-              {source} ({items.length})
-            </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {items.map(({ trait, charId, charName }) => (
-                <Box key={`${charId}-${trait.name}`} sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
-                  <TraitChip trait={trait} charName={charName} onOpen={handleOpen} />
-                  <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-                    {charName}
-                  </Typography>
-                </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1 }}>
+              <span style={{ fontSize: "1.1rem" }}>{getTraitIcon(source)}</span>
+              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: "uppercase" }}>
+                {source} ({items.length})
+              </Typography>
+            </Box>
+            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 0.75 }}>
+              {items.map(({ trait, charName }, i) => (
+                <TraitSlot key={`${source}-${trait.name}-${charName}-${i}`} trait={trait} charName={charName} />
               ))}
             </Box>
           </Box>
         ))}
       </Box>
-
-      <Popover
-        open={!!popover}
-        anchorEl={popover?.anchor ?? null}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
-        slotProps={{ paper: { sx: { maxWidth: 360, p: 2 } } }}
-      >
-        {popover && (
-          <>
-            <Typography variant="subtitle1" fontWeight={600}>{popover.trait.name}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {popover.trait.source}{popover.trait.source_type ? ` · ${popover.trait.source_type}` : ""} · {popover.charName}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
-              {popover.trait.description}
-            </Typography>
-          </>
-        )}
-      </Popover>
     </Box>
   );
 }

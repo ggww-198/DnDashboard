@@ -6,6 +6,7 @@ import TableCell from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
+import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 import { useParty } from "../context/PartyContext";
@@ -25,12 +26,14 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function CharNameChip({ charId, name }: { charId: string; name: string }) {
   const { openDrawer } = useCharacterDrawer();
   return (
-    <Chip
-      label={name}
-      size="small"
-      onClick={() => openDrawer(charId)}
-      sx={{ cursor: "pointer", fontWeight: 600, "&:hover": { bgcolor: "primary.dark", color: "primary.contrastText" } }}
-    />
+    <Tooltip title="Open sheet" placement="top">
+      <Chip
+        label={name}
+        size="small"
+        onClick={() => openDrawer(charId)}
+        sx={{ cursor: "pointer", fontWeight: 600, "&:hover": { bgcolor: "primary.dark", color: "primary.contrastText" } }}
+      />
+    </Tooltip>
   );
 }
 
@@ -51,7 +54,7 @@ export default function Dashboard() {
         Party at a glance
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
-        Click a character name to open their sheet in the side panel. All data is party-wide.
+        Hover for details · click a name to open sheet.
       </Typography>
 
       <SectionTitle>Combat & core stats</SectionTitle>
@@ -136,7 +139,7 @@ export default function Dashboard() {
         </Table>
       </TableContainer>
 
-      <SectionTitle>Skills (modifier · ✓ = proficient)</SectionTitle>
+      <SectionTitle>Skills</SectionTitle>
       <TableContainer component={Paper} variant="outlined" sx={{ mb: 1, overflowX: "auto" }}>
         <Table size="small" stickyHeader>
           <TableHead>
@@ -159,11 +162,15 @@ export default function Dashboard() {
                   const bonus = s?.bonus ?? "—";
                   const prof = s?.prof ?? false;
                   const num = bonus !== "—" ? Number(bonus) : NaN;
+                  const skillName = SKILL_LABELS[skillKey] ?? skillKey;
+                  const hoverText = bonus !== "—" ? `${skillName} ${num >= 0 ? "+" : ""}${bonus}${prof ? " (proficient)" : ""}` : "";
                   return (
                     <TableCell key={id} align="center">
-                      <Typography variant="body2" color={prof ? "primary" : "text.secondary"}>
-                        {bonus !== "—" && num >= 0 ? "+" : ""}{bonus}{prof ? " ✓" : ""}
-                      </Typography>
+                      <Tooltip title={hoverText} placement="top">
+                        <Typography component="span" variant="body2" color={prof ? "primary" : "text.secondary"}>
+                          {bonus !== "—" && num >= 0 ? "+" : ""}{bonus}{prof ? " ✓" : ""}
+                        </Typography>
+                      </Tooltip>
                     </TableCell>
                   );
                 })}
